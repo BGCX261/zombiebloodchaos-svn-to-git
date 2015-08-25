@@ -1,0 +1,549 @@
+{{{
+#! /usr/bin/python
+
+from Amortization import calculate
+from Amortization import convertInput
+import copy
+import unittest
+import AmortTable
+
+class TestAmortization (unittest.TestCase):
+    """
+    Tester class for Amortization.py and AmortTable.py
+    """
+
+    class TestObj:
+        pass
+
+    # ---------
+    # Utility Methods
+    # ---------
+
+    showDebug = False
+    marginOfErrorPercentage = 1.0
+    varNames = ("presentValue", "futureValue", "rateOfInterest", "numberOfMonths", "paymentAmount")
+    testVars = ("paymentAmount", "futureValue", "presentValue")
+    testRows = ("balBefore", "int", "totalInt", "pay", "payTotal")    
+
+    def debug(self, message):
+        if (self.showDebug):
+            print message;
+
+    def debugObj(self, object):        
+        if (object == None):
+            self.debug("None")
+        else:
+            for key in object.__dict__.keys():
+                self.debug(key + " = " + str(object.__dict__.get(key)))
+        
+
+    def debugCompare(self, expected, actual):
+        self.debug("----- Expected Values:")
+        self.debugObj(expected)
+        self.debug("~----")
+        self.debug("----- Actual Values:")
+        self.debugObj(actual)
+        self.debug("~----")
+
+    def compareVal(self, expected, actual, name=""):
+        """
+        Compares two values within 2 x the specified margin of error
+        """
+        marginOfError = self.marginOfErrorPercentage / 100.0
+        if (expected == None):
+            if (actual != None):
+                debug("Expected None, found non-None")
+            assert(actual == None)
+            return
+        if (actual == None):
+            debug("Expected non-None, found None")
+        assert(actual != None)
+        
+        actual = float(actual)
+        expected = float(expected)
+
+        if (abs(expected) < 1):
+            error = marginOfError
+        else:
+            error = marginOfError * expected
+
+        if (expected < 0):
+            max = expected - error
+            min = expected + error
+        else:
+            max = expected + error
+            min = expected - error
+
+        if (actual < min) or (actual > max):                    
+            self.debug(name + " expected " + str(expected) + " found " + str(actual))
+            self.debug("error = " + str(error))
+            self.debug("max = " + str(max))
+            self.debug("min = " + str(min))
+
+        assert (actual <= max)
+        assert (actual >= min)    
+
+    def checkCalculateObj(self, expected, actual):
+        """
+        Verifies the contents of a numeric calculate-result object
+        """
+        for name in self.varNames:
+            self.compareVal(expected.__dict__.get(name), actual.__dict__.get(name), name)
+
+    def checkRow(self, expected, actual):
+        """
+        Verifies the contents of an amortization table row.
+        """
+        self.debug("\nTesting row values")
+        try:
+            for name in self.testRows:
+                self.compareVal(expected.__dict__.get(name), actual.__dict__.get(name), name)
+        except AssertionError:
+            self.debugCompare(expected, actual)
+            raise
+
+    def checkCalculate(self, expected):
+        """
+        Checks calculate for all legal unspecified values.
+        """
+        #Fix for monthly interest rate calculation
+        #expected.rateOfInterest = (float(expected.rateOfInterest)/100)/12
+        for name in self.testVars:
+            self.debug("\nTesting find " + name)
+            testObj = copy.deepcopy(expected)            
+            testObj.__dict__[name] = -1            
+            calculate(testObj)
+            try :
+                self.checkCalculateObj(expected, testObj)
+            except AssertionError:
+                self.debugCompare(expected, testObj)
+                raise
+
+    def checkInputObj(self, expected, actual):
+        self.debug("\nTesting input parse")
+        try:
+            for name in self.varNames:
+                if (expected.__dict__.get(name) != None):
+                    self.compareVal(expected.__dict__.get(name), actual.__dict__.get(name), name)
+        except AssertionError:
+            self.debugCompare(expected, actual)
+            raise
+        
+    # ---------
+    #  calculate
+    # ---------
+
+    def testCalculate_01(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 0
+        testObj.futureValue = 200000
+        testObj.rateOfInterest = 12
+        testObj.numberOfMonths = 30
+        testObj.paymentAmount = -5749.62264
+        self.checkCalculate(testObj)
+    
+    def testCalculate_02(self):
+        testObj = self.TestObj()        
+        testObj.presentValue = 1000000
+        testObj.futureValue = 1234
+        testObj.rateOfInterest = 5.0
+        testObj.numberOfMonths = 45
+        #Downing's Calculator
+        #testObj.paymentAmount = -24391.77
+        #BAII+
+        testObj.paymentAmount = -24441.7394
+        self.checkCalculate(testObj)
+
+    def testCalculate_03(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 500
+        testObj.futureValue = 2000000
+        testObj.rateOfInterest = 15
+        testObj.numberOfMonths = 120
+        #Downing's Calculator
+        #testObj.paymentAmount = 7258.93
+        #BAII+
+        testObj.paymentAmount = -7275.058
+        self.checkCalculate(testObj)
+
+    def testCalculate_04(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 300
+        testObj.futureValue = 10000
+        testObj.rateOfInterest = 50
+        testObj.numberOfMonths = 1
+        #Downing's Calculator
+        #testObj.paymentAmount = 9687.5
+        #BAII+
+        testObj.paymentAmount = -10312.50
+        self.checkCalculate(testObj)
+
+    def testCalculate_05(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 3000000
+        testObj.futureValue  = -1000000
+        testObj.rateOfInterest = 7
+        testObj.numberOfMonths = 180
+        #Downing's Calculator
+        #(Not Valid)
+        #BAII+
+        testObj.paymentAmount = -23809.89875
+        self.checkCalculate(testObj)
+
+    def testCalculate_06(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 1
+        testObj.futureValue = 2000000
+        testObj.rateOfInterest = 12
+        testObj.numberOfMonths = 120
+        #Downing's Calculator
+        #testObj.paymentAmount = 8694.18
+        #BAII+
+        testObj.paymentAmount = -8694.2040
+        self.checkCalculate(testObj)
+
+    """
+    def testCalculate_07(self):
+        #Zero rate of interest not supported
+        testObj = self.TestObj()
+        testObj.presentValue = 0
+        testObj.futureValue = 40000
+        testObj.rateOfInterest = 0
+        testObj.numberOfMonths = 12
+        #Downing's Calculator
+        #(Not Valid)
+        #BAII+
+        testObj.paymentAmount = -3333.333333
+        self.checkCalculate(testObj)
+    """
+
+    """
+    def testCalculate_08(self):
+        #Zero rate of interest not supported
+        testObj = self.TestObj()
+        testObj.presentValue = 500000
+        testObj.futureValue = 0
+        testObj.rateOfInterest = 8
+        testObj.numberOfMonths = 240
+        #Downing's Calculator
+        #testObj.paymentAmount = -3876.5
+        #BAII+
+        testObj.paymentAmount = -4182.200
+        self.checkCalculate(testObj)
+    """
+
+    # ---------
+    # convertInput
+    # ---------
+    def testConvertInput_01(self):
+        testObj = self.TestObj()
+        testObj.futureValue = ""
+        testObj.presentValue = "1000"
+        testObj.rateOfInterest = "10"
+        testObj.numberOfMonths = "50"
+        testObj.paymentAmount = "9834"
+        testObj = convertInput(testObj)
+        expected = self.TestObj()
+        expected.presentValue = 1000        
+        expected.rateOfInterest = 10
+        expected.numberOfMonths = 50
+        expected.paymentAmount = 9834
+        self.checkInputObj(expected, testObj)
+
+    def testConvertInput_02(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = "4"
+        testObj.paymentAmount = "5"
+        testObj = convertInput(testObj)
+        #Too many inputs defined
+        assert(testObj == None)
+
+    def testConvertInput_03(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = ""
+        testObj.paymentAmount = ""
+        testObj = convertInput(testObj)
+        #Not enough inputs defined
+        assert(testObj == None)
+
+    def testConvertInput_04(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = ""
+        testObj.paymentAmount = "5"
+        testObj = convertInput(testObj)
+        #Wrong inputs defined
+        assert(testObj == None)
+
+    def testConvertInput_05(self):
+        testObj = self.TestObj()
+        testObj.presentValue = ""
+        testObj.futureValue = ""
+        testObj.rateOfInterest = ""
+        testObj.numberOfMonths = ""
+        testObj.paymentAmount = ""
+        testObj = convertInput(testObj)
+        #No inputs defined
+        assert(testObj == None)
+
+    def testConvertInput_06(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = "-4"
+        testObj.paymentAmount = ""
+        testObj = convertInput(testObj)
+        #Non-sensical negative
+        assert(testObj == None)
+
+    def testConvertInput_07(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = "-4"
+        testObj.paymentAmount = ""
+        testObj = convertInput(testObj)
+        #Non-sensical negative
+        assert(testObj == None)
+
+    def testConvertInput_08(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1.001"
+        testObj.futureValue = "2.002"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = "4"
+        testObj.paymentAmount = ""
+        testObj = convertInput(testObj)
+        #Fractions of cents in input values
+        assert(testObj != None)
+
+    def testConvertInput_09(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "-204"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = "4"
+        testObj.paymentAmount = ""
+        testObj = convertInput(testObj)
+        #Bad future value (double negative)
+        assert(testObj == None)
+
+    def testConvertInput_10(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "-3.2"
+        testObj.numberOfMonths = "4"
+        testObj.paymentAmount  = ""
+        testObj = convertInput(testObj)
+        #Impossible rate of interest
+        assert(testObj == None)
+
+    def testConvertInput_11(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "-3.2.3"
+        testObj.numberOfMonths = "4"
+        testObj.paymentAmount  = ""
+        testObj = convertInput(testObj)
+        #Double decimal
+        assert(testObj == None)
+
+    def testConvertInput_12(self):
+        testObj = self.TestObj()
+        testObj.presentValue = "1"
+        testObj.futureValue = "2"
+        testObj.rateOfInterest = "3"
+        testObj.numberOfMonths = "4.5"
+        testObj.paymentAmount  = ""
+        testObj = convertInput(testObj)
+        #Fractions of months
+        assert(testObj == None)
+
+    def testConvertInput_13(self):
+        testObj = self.TestObj()
+        testObj.futureValue = ""
+        testObj.presentValue = "1000.5"
+        testObj.rateOfInterest = "10.5"
+        testObj.numberOfMonths = "50"
+        testObj.paymentAmount = "9834.23"
+        testObj = convertInput(testObj)
+        expected = self.TestObj()
+        expected.presentValue = 1000.5
+        expected.rateOfInterest = 10.5
+        expected.numberOfMonths = 50
+        expected.paymentAmount = 9834.23
+        self.checkInputObj(expected, testObj)
+
+    def testConvertInput_14(self):
+        testObj = self.TestObj()
+        testObj.futureValue = "-100"
+        testObj.presentValue = "0"
+        testObj.paymentAmount = ""
+        testObj.rateOfInterest = "5"
+        testObj.numberOfMonths = "10"
+        testObj = convertInput(testObj)
+        #Negative future value
+        assert(testObj == None)
+
+    def testConvertInput_15(self):
+        testObj = self.TestObj()
+        testObj.futureValue = ""
+        testObj.presentValue = "200"
+        testObj.paymentAmount = "-50"
+        testObj.rateOfInterest = "5"
+        testObj.numberOfMonths = "10"
+        testObj = convertInput(testObj)
+        expected = self.TestObj()
+        expected.presentValue = 200
+        expected.rateOfInterest = 5
+        expected.numberOfMonths = 10
+        expected.paymentAmount = -50
+        self.checkInputObj(expected, testObj)
+
+    def testConvertInput_16(self):
+        testObj = self.TestObj()
+        testObj.futureValue = ""
+        testObj.presentValue = "200"
+        testObj.paymentAmount = "50"
+        testObj.rateOfInterest = "0"
+        testObj.numberOfMonths = "10"
+        testObj = convertInput(testObj)
+        #Zero rate of interest not supported
+        assert(testObj == None)
+
+    # ---------
+    # AmortTable
+    # ---------
+    def testAmortTable_01(self):
+        self.debug("Testing table functionality")
+        testObj = self.TestObj()
+        testObj.futureValue = 1000
+        testObj.presentValue = 0
+        testObj.paymentAmount = -1
+        testObj.rateOfInterest = 5.5
+        testObj.numberOfMonths = 12
+        calculate(testObj)
+        table = AmortTable.getTable(testObj)
+        assert(table != None)
+        #Test general table functionality       
+        assert(len(table) > 0)
+        htmlOut = table.toHTML()
+        assert(htmlOut != None)        
+
+    """
+    def testAmortTable_02(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 0
+        testObj.futureValue = 100000.0
+        testObj.paymentAmount = -1
+        testObj.rateOfInterest = 10.2
+        testObj.numberOfMonths = 50
+        calculate(testObj)
+        table = AmortTable.getTable(testObj)
+        assert(len(table) == 50)
+
+        testRow = self.TestObj()
+        testRow.payNum = 47
+        testRow.balBefore = 90352.6
+        testRow.int = 768.00
+        testRow.totalInt = 16905.12
+        testRow.pay = 1613.38
+        testRow.payTotal = 75828.86        
+        self.checkRow(testRow, table.row(47))
+
+    def testAmortTable_03(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 40000
+        testObj.futureValue = 500
+        testObj.paymentAmount = -1
+        testObj.rateOfInterest = 10
+        testObj.numberOfMonths = 40
+        calculate(testObj)
+        table = AmortTable.getTable(testObj)
+        assert(len(table) == 40)
+
+        testRow = self.TestObj()
+        testRow.payNum = 40
+        testRow.balBefore = 1655.56
+        testRow.int = 13.80
+        testRow.totalInt = 7277.91
+        testRow.pay = -1169.36
+        testRow.payTotal = -46777.91
+        self.checkRow(testRow, table.row(40))
+
+    def testAmortTable_04(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 350
+        testObj.futureValue = 23232
+        testObj.paymentAmount = -1
+        testObj.rateOfInterest = 9.9
+        testObj.numberOfMonths = 36
+        calculate(testObj)
+        table = AmortTable.getTable(testObj)
+        assert(len(table) == 36)
+
+        testRow = self.TestObj()
+        testRow.payNum = 36
+        testRow.balBefore = 22500.73
+        testRow.int = 185.63
+        testRow.totalInt = 3240.36
+        testRow.pay = 545.64
+        testRow.payTotal = 19641.64
+        self.checkRow(testRow, table.row(36))
+"""
+    def testAmortTable_05(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 500000
+        testObj.futureValue = 0
+        testObj.paymentAmount = -1
+        testObj.rateOfInterest = 12.2
+        testObj.numberOfMonths = 360
+        calculate(testObj)
+        table = AmortTable.getTable(testObj)
+        assert(len(table) == 360)
+
+        testRow = self.TestObj()
+        testRow.payNum = 324
+        testRow.balBefore = 160296.65
+        testRow.int = 1629.68
+        testRow.totalInt = 1348041.24
+        testRow.pay = -5220.17
+        testRow.payTotal = -1691335.08
+        self.checkRow(testRow, table.row(324))
+
+    def testAmortTable_06(self):
+        testObj = self.TestObj()
+        testObj.presentValue = 200000
+        testObj.futureValue = 0
+        testObj.paymentAmount = -1
+        testObj.rateOfInterest = 7.67
+        testObj.numberOfMonths = 240
+        calculate(testObj)
+        table = AmortTable.getTable(testObj)
+        assert(len(table) == 240)
+
+        testRow = self.TestObj()
+        testRow.payNum = 240
+        testRow.balBefore = 1621.52
+        testRow.int = 10.36
+        testRow.totalInt = 191689.44
+        testRow.pay = -1631.88
+        testRow.payTotal = -391689.44
+        self.checkRow(testRow, table.row(240))
+
+print "TestAmortization.py"
+unittest.main()
+print "Done."
+}}}

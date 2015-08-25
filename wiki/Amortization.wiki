@@ -1,0 +1,37 @@
+_This wiki describes the algorithms and optimizations used in implementing a *Google App Engine* app to compute an amortization and its corresponding table._
+
+= Specification =
+
+Given four of the following five variables:
+
+  * present value
+  * future  value
+  * payment amount
+  * rate of interest
+  * number of payments
+
+compute *any* of the first three.
+
+= Calculations =
+
+*present value*:<br><p>http://www.getobjects.com/Graphics/PV.gif</p>
+
+<br><br>*future  value*:<br><p>http://www.getobjects.com/Graphics/FV.gif</p>
+
+<br><br>*payment amount*:<br><p>http://www.getobjects.com/Graphics/pmt.jpg</p>
+
+= Input checking =
+
+  * *number of payments* must be an int value greater than zero, all others may be an int or float.
+  * *payment amount* may either be negative or positive.
+  * The remaining values must be greater than or equal to 0.
+
+  * For int values:
+    # scan through each character.
+    # only accept numbers 0 - 9.
+    # anything else is not accepted.
+
+  * For float values:
+    # scan through each character.
+    # only accept numbers 0 - 9, a '-' at the beginning of the string or a maximum of one '.'.
+    # anything else is not accepted.
